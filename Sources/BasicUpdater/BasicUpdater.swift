@@ -26,7 +26,7 @@ public class BasicUpdater {
 
             // back off days
             guard lastCheck < daysAgo else {
-                print("BasicUpdater: backed off, \(daysAgo) < \(backOffDays) days.")
+                print("BasicUpdater: backed off, less than \(backOffDays) days.")
                 return
             }
 
@@ -66,6 +66,7 @@ public class BasicUpdater {
     }
 
     private func loadUpdaterJson(at url: URL) async -> Updater? {
+        URLCache.shared.removeAllCachedResponses()
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             return try JSONDecoder().decode(Updater.self, from: data)
