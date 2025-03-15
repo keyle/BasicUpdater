@@ -1,10 +1,5 @@
-// The Swift Programming Language
-// https://docs.swift.org/swift-book
-
 import Cocoa
-import CoreText
 import Foundation
-import SwiftUI
 
 private struct Updater: Codable {
     let product: String
@@ -14,7 +9,7 @@ private struct Updater: Codable {
 
 let updateCheckKey = "lastUpdateCheck"
 
-public class PackageUpdater {
+public class BasicUpdater {
     let baseUrl: String
     let backOffDays: Int
 
@@ -29,34 +24,26 @@ public class PackageUpdater {
             let lastCheck = UserDefaults.standard.object(forKey: updateCheckKey) as? Date ?? Date.distantPast
             let daysAgo = Calendar.current.date(byAdding: .day, value: -1 * backOffDays, to: Date())!
 
-            // Ensure at least a week has passed since the last check
-            guard lastCheck < daysAgo else { return }
+            // back off days
+            guard lastCheck < daysAgo else {
+                print("BasicUpdater: backed off, \(daysAgo) < \(backOffDays) days.")
+                return
+            }
+
+            print("BasicUpdater: checking for update at \(baseUrl)...")
 
             guard let url = URL(string: "\(baseUrl)/updater.json"),
-                  let updater = await self.loadUpdaterJson(at: url)
+                let updater = await self.loadUpdaterJson(at: url)
             else { return }
 
             if compareVersion(online: updater) {
                 promptUserToUpdate(base: baseUrl, updater: updater)
+            } else {
+                print("BasicUpdater: application \(updater.version) already up to date.")
             }
 
             UserDefaults.standard.set(Date(), forKey: updateCheckKey)
         }
-    }
-
-    private func loadUpdaterJson(at url: URL) async -> Updater? {
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            return try JSONDecoder().decode(Updater.self, from: data)
-        } catch {
-            print(error)
-        }
-        return nil
-    }
-
-    private func compareVersion(online: Updater) -> Bool {
-        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-        return appVersion != online.version
     }
 
     @MainActor
@@ -76,5 +63,20 @@ public class PackageUpdater {
                 NSWorkspace.shared.open(downloadURL)
             }
         }
+    }
+
+    private func loadUpdaterJson(at url: URL) async -> Updater? {
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            return try JSONDecoder().decode(Updater.self, from: data)
+        } catch {
+            print(error)
+        }
+        return nil
+    }
+
+    private func compareVersion(online: Updater) -> Bool {
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        return appVersion != online.version
     }
 }
